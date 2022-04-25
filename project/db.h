@@ -13,7 +13,7 @@ typedef struct node {
 
 extern node_t head;
 
-node_t *search(char *name, node_t *parent, node_t **parentp);
+node_t *search(char *name, node_t *parent, node_t **parentp, int locktype);
 
 /**
   * The db_query() function calls search() to retrieve the node associated with the 
