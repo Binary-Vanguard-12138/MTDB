@@ -8,6 +8,7 @@ typedef struct node {
     char *value;
     struct node *lchild;
     struct node *rchild;
+    pthread_rwlock_t rw_lock;
 } node_t;
 
 extern node_t head;
