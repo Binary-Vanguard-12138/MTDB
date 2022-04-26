@@ -74,50 +74,22 @@ void thread_cleanup(void *arg);
  * Called by client threads to wait until progress is permitted.
  */
 void client_control_wait() {
-    if (pthread_mutex_lock(&client_control.go_mutex)){
-        perror("mutex could not be locked: \n");
-        exit(1);
-    }
-    pthread_cleanup_push(&pthread_mutex_unlock, (void*) &client_control.go_mutex);
-    while(!client_control.stopped){
-        if (pthread_cond_wait(&client_control.go, &client_control.go_mutex)){
-            perror("pthread_cond_wait failure: \n");
-            exit(1);
-        }
-    }
-    pthread_cleanup_pop(1);
+    // TODO: Block the calling thread until the main thread calls
+    // client_control_release(). See the client_control_t struct.
 }
 /*
  * Called by main thread to stop client threads
  */
 void client_control_stop() {
-    if (pthread_mutex_lock(&client_control.go_mutex)){
-        perror("mutex could not be locked: \n");
-        exit(1);
-    }
-    client_control.stopped = 0;
-    if (pthread_mutex_unlock(&client_control.go_mutex)){
-        perror("mutex could not be unlocked: \n");
-        exit(1);
-    }
+    // TODO: Ensure that the next time client threads call client_control_wait()
+    // at the top of the event loop in run_client, they will block.
 }
 /*
  * Called by main thread to resume client threads
  */
 void client_control_release() {
-    if (pthread_mutex_lock(&client_control.go_mutex)){
-        perror("mutex could not be locked: \n");
-        exit(1);
-    }
-    client_control.stopped = 1;
-    if (pthread_cond_broadcast(&client_control.go)){
-        perror("pthread_cond_broadcast failure: \n");
-        exit(1);
-    }
-    if (pthread_mutex_unlock(&client_control.go_mutex)){
-        perror("mutex could not be unlocked: \n");
-        exit(1);
-    }
+    // TODO: Allow clients that are blocked within client_control_wait()
+    // to continue. See the client_control_t struct.
 }
 /*
  * Called by listener (in comm.c) to create a new client thread
@@ -192,7 +164,6 @@ void *run_client(void *arg) {
     memset(&response, 0, BUFLEN);
     memset(&command, 0, BUFLEN);
     while(comm_serve(client->cxstr, response, command) == 0){
-        client_control_wait();
         interpret_command(command, response, BUFLEN);
     }
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, 0);
@@ -316,19 +287,6 @@ int main(int argc, char *argv[]) {
             if (strtok(&server_command[1], " \t\n")){
                 continue;
             }
-            if (server_command[0] == 's'){
-                if (fprintf(stdout, "stopping all clients\n") < 0){
-                    perror("fprintf failure: \n");
-                    exit(1);
-                }
-                client_control_stop();
-            } else if (server_command[0] == 'g') {
-                if (fprintf(stdout, "releasing all clients\n") < 0){
-                    perror("fprintf failure: \n");
-                    exit(1);
-                }
-                client_control_release();
-            }            
         }       
         memset(server_command, 0, BUFLEN);
     }
