@@ -1,18 +1,19 @@
 #include <assert.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <fcntl.h>
-#include <errno.h>
-#include "./db.h"
-#include "./comm.h"
-#include <pthread.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <time.h>
-#include <signal.h>
+#include <unistd.h>
+#include "./comm.h"
+#include "./db.h"
+
 // Global variable to keep track of whether the server is still accepting clients.
 // Server should stop receiving clients in case of EOF, so this variable is set to
 // 1 in main after the while loop.
@@ -164,20 +165,6 @@ void *run_client(void *arg) {
         perror("mutex could not be locked: \n");
         exit(1);
     }
-    sigset_t set;
-    if (sigemptyset(&set) == -1){
-        perror("set could not be emptied: \n");
-        exit(1);
-    }
-    // Clients have to ignore SIGPIPE
-    if (sigaddset(&set, SIGPIPE) == -1){
-        perror("signal could not be added to the set: \n");
-        exit(1);
-    }
-    if (pthread_sigmask(SIG_BLOCK, &set, 0)){
-        perror("signal masking failure: \n");
-        exit(1);
-    }
     if (!thread_list_head){
         client->next = NULL;
     } else {
@@ -283,71 +270,30 @@ void thread_cleanup(void *arg) {
     }
 }
 /*
- * Code executed by the signal handler thread. Waits on SIGINT which is 
- * in the sigset associated with it. Upon receiving SIGINT, deletes all 
- * active clients.
- */
+// Code executed by the signal handler thread. For the purpose of this
+// assignment, there are two reasonable ways to implement this.
+// The one you choose will depend on logic in sig_handler_constructor.
+// 'man 7 signal' and 'man sigwait' are both helpful for making this
+// decision. One way or another, all of the server's client threads
+// should terminate on SIGINT. The server (this includes the listener
+// thread) should not, however, terminate on SIGINT!
 void *monitor_signal(void *arg) {
     // TODO: Wait for a SIGINT to be sent to the server process and cancel
     // all client threads when one arrives.
-    int sig = 0;
-    while (1){
-        if (sigwait((sigset_t*) arg, &sig)){
-            perror("sigwait failure: \n");
-            exit(1);
-        }
-        if (sig == SIGINT){
-            printf("SIGINT received, cancelling all clients\n");
-            delete_all();
-        }        
-    }
     return NULL;
 }
-/*
- * Creates a thread who is solely responsible for waiting for and responding
- * to SIGINT. Before constructing this thread, makes sure that any other thread
- * ignores SIGINT upon receiving it.
- */
+
 sig_handler_t *sig_handler_constructor() {
-    sig_handler_t* sig_thread;
-    if ((sig_thread = (sig_handler_t*) malloc(sizeof(sig_handler_t))) == NULL){
-        perror("malloc failed: \n");
-        exit(1);
-    }
-    if (sigemptyset(&sig_thread->set) == -1){
-        perror("set could not be emptied: \n");
-        exit(1);
-    }
-    if (sigaddset(&sig_thread->set, SIGINT) == -1){
-        perror("signal could not be added to the set: \n");
-        exit(1);
-    }
-    if (pthread_sigmask(SIG_BLOCK, &sig_thread->set, 0)){
-        perror("signal could not be added to the set: \n");
-        exit(1);
-    }
-    int err;
-    // Creates thread which is the sole thread that deals with signal handling.
-    if ((err = pthread_create(&sig_thread->thread, 0, monitor_signal, &sig_thread->set))){
-        handle_error_en(err, "pthread_create");
-    }
-    if ((err = pthread_detach(sig_thread->thread))){
-        handle_error_en(err, "pthread_detach");
-    }
-    return sig_thread;
+    // TODO: Create a thread to handle SIGINT. The thread that this function
+    // creates should be the ONLY thread that ever responds to SIGINT.
+    return NULL;
 }
-/*
- * Cancels signal handling thread and frees space allocated 
- * to the signal handling struct to avoid memory corruption.
- */
+
 void sig_handler_destructor(sig_handler_t *sighandler) {
-    int err;
-    if (err = pthread_cancel(sighandler->thread)){
-        handle_error_en(err, "pthread_cancel");
-    }
-    free(sighandler);
+    // TODO: Free any resources allocated in sig_handler_constructor.
+    // Cancel and join with the signal handler's thread. 
 }
-/*
+
  * Main of program.
  */
 int main(int argc, char *argv[]) {
@@ -356,9 +302,6 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Usage: %s <port number>\n", argv[0]);
         exit(1);
     }
-    // Constructs signal handling thread and makes sure that 
-    // it is the only thread in the program that handles signals.
-    sig_handler_t* sighandler = sig_handler_constructor();
     // Constructs listener thread which constructs clients.
     pthread_t server_thread = start_listener(atoi(argv[1]), &client_constructor);
     // Buffer to store command input to server.
@@ -447,7 +390,6 @@ int main(int argc, char *argv[]) {
         perror("condition could not be destroyed: \n");
         exit(1);
     }
-    // Frees up resources allocated to the signal handling construct.
-    sig_handler_destructor(sighandler);
+
     pthread_exit(0);
 }
