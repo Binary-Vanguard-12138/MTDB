@@ -7,12 +7,12 @@
 	./server 8888
 5. Open the new terminal, and change into our project directory and run the client. You must specify the server address and port.
 	./client 127.0.0.1 8888
-6. Run commands in the client terminal. You can type add/remove/query commands like the following commands
+6. Run commands in the client terminal. You can type add/delete/query commands like the following commands
 	a key1 value1
 	a key2 value2
 	a key3 value3
 	q key1
-	r key2
+	d key2
 
 --------------------------------
 	From the 1st line to the 3rd line will add three entries in the server database.
