@@ -22,7 +22,5 @@
 
 7. Run commands in the server terminal. You can run the following 3 commands.
 	- "p": print all the db entries.
-	- "s": stop all the connected clients. If you run this command, all the commands inputed from the client will not work.
-	- "g": release all the stopped clients and let them go on. If you run this command, all the stopped clients will be restored and continues working.
 
 8. You can run multiple instances of client in multiple terminal. Because our server and db module is designed to be multi-thread safe.
