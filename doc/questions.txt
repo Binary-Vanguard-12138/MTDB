@@ -1,13 +1,30 @@
 Questions
 
 1. Consider the thread created in start_listener. How many threads with this functionality should be running on the server at any given time?
+	Only one thread with this functionality per one port should be running on the server at any given time.
+	If we want server to listen on serveral ports, we will create listener thread that is used for accepting clients for every port.
 
 2. In the listener function, what do each of the following fields of the sockaddr_in struct represent: sin_family, sin_port, and sin_addr.s_addr?
+	sin_family: The address family for the transport address. This field must set to AF_INET, because sockaddr_in struct is used for IPv4 addresses.
+	sin_port: A transport protocol port number, and it is in TCP/IP network byte order.
+	sin_addr.s_addr: A ULONG value of address, and it is also in TCP/IP network byte order.
 
 3. What is the purpose of each of the following function calls in listener: socket, bind, listen, and accept? You should explain what each call does and what the effect would be if it were not called.
+	socket: This function creates a socket that is bound to a specific type. The family of the socket can be AF_INET or AF_INET6 or etc. The type of socket can be SOCK_STREAM, SOCK_DGRAM, etc. The protocol parameter can be set to 0 or other values indicating the proper protocol. We must call this function to create a socket, and we will not be able to do anything without creating socket by calling this function.
+	bind: This function associates a local address with a socket. You can specify the address and the port for our server socket. This function can be called for both TCP/UDP protocol. We can't capture the incoming packet if we didn't call this function.
+	listen: This function places a socket in a state in which it is listening for an incoming connection, i.e. the sockets starts listening for incoming client connetions after calling this function. Usually it is used only for TCP socket.
+	accept: This function permits an incoming connection attempt on a socket. This function accept a new incoming connection and returns a socket which is used for communicate with client. You can not actually send or receive messages with the client without calling this function.
 
 4. Which protocol (TCP or UDP) is used for communication? Why is this protocol used? (Hint: see line 34 in comm.c)
+	We used TCP protocol for our project. This protocol is connection-oriented and when you use TCP protocol, your application can stay connected for any length of time. TCP is reliable as it guarantees delivery of data to the destination router. We must query and access to the database server, so we need a guarantee that the data between client and server must be sent and received for sure.
 
 5. Describe what comm_serve does. How are the response and command parameters used? What would happen if the stream pointed to by cxstr were closed?
+	comm_serve function receives command from client and send the response to the client.
+	"response" and "command" parameters are buffers for saving response and command.
+	At first comm_serve function receives command from client and saves it into the "command" parameter. Then server calls interpret_command function to get response from the database. After get response from the database comm_serve function sends the response to the server and receives next command. It will loop forever until client is disconnected or other interrupt is occurred.
+	If the stream pointed to by cxstr were closed, comm_serve function would return -1, run_client thread would finish.
 
 6. Describe, in detail, what happens during each iteration of the while loop in the listener function. Be sure to include explanations of all significant function calls.
+	At first, it accepts an incoming connection by calling accept function and saves the client socket file descriptor.
+	Next, it calls fdopen function to get the File stream of the client socket.
+	Next, it calls the "server" callback function passed as the 1st parameter or the listener thread. The "server" callback function will be the "client_constructor" function in server.c. And "client_constructor" function will create new thread "run_client" to receive the commands from the client and send response to the client.

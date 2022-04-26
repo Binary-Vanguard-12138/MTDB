@@ -1,0 +1,28 @@
+1. Copy the project.zip file into your Linux system and unzip it.
+2. Change into the project directory
+	cd project
+3. Compile the project. And you will two executable files named "server" and "client"
+	make
+4. Run the server in your client with the specific port
+	./server 8888
+5. Open the new terminal, and change into our project directory and run the client. You must specify the server address and port.
+	./client 127.0.0.1 8888
+6. Run commands in the client terminal. You can type add/remove/query commands like the following commands
+	a key1 value1
+	a key2 value2
+	a key3 value3
+	q key1
+	r key2
+
+--------------------------------
+	From the 1st line to the 3rd line will add three entries in the server database.
+	The 4th line will query the entry whose key is "key1" and shows the result.
+	The 5th line will remove the entry whose key is "key2".
+---------------------------------
+
+7. Run commands in the server terminal. You can run the following 3 commands.
+	- "p": print all the db entries.
+	- "s": stop all the connected clients. If you run this command, all the commands inputed from the client will not work.
+	- "g": release all the stopped clients and let them go on. If you run this command, all the stopped clients will be restored and continues working.
+
+8. You can run multiple instances of client in multiple terminal. Because our server and db module is designed to be multi-thread safe.

@@ -1,0 +1,27 @@
+Part 4.1 Networking
+
+"start_listener" function which is used for accepting incoming client connections has already been implemented in comm.c file.
+So I just have to call this function in the beginning of the main() function of server.c. The "start_listener" function will be called with two parameters: the 1st one is the listening port of TCP server, and the 2nd one is a callback function which is "client_constructor".
+In the "client_constructor" function, we will need to allocate memory for a new client and create the new client thread running the "run_client" routine just like what I wrote in the code.
+In the "run_client" function, the server receives command from the client, run some database actions such as add/remove/query, and sends the response to the server by calling comm_serve and interpret_command function.
+See the answer of the 5th problem in the questions.txt for more detail about what comm_server does.
+
+Part 4.2 Multithreading
+To implement the multithreaded version of the server, we spawns a new thread which executes run_client() in the client_constructor() function.
+The server accepts new incoming client and spawns the new thread for every client.
+We would like the client threads to clean themselves up, we need to detach each client thread. As you can see in the client_constructor() function, we created a new thread running run_client function calling pthread_create() and detached it by calling pthread_detach().
+We called pthread_cleanup_push() function in the middle of run_client() function so that thread_cleanup() will be called when the run_client() thread is finished.
+In the thread_cleanup() function, we removes the current client object from the double-link list of the clients.
+When we clean up at the end, the database should be deleted, but not before all clients are done with it. Because we detached our client threads, so we cannot wait for them to finish with pthread_join(). So we must maintain a thread-safe counter of the number of active client threads. So server_control.num_client_threads variable increases in the middle of run_client() function and decreases when thread_cleanup() is called. 
+After the client thread finishes, client_destructor() function will be called in thread_cleanup() function.
+In the main function after all clients have been deleted, and server_control.num_client_threads changed into 0, the functions for cleaning up will be called.
+
+Part 4.3
+The original database was not thread-safe. so we must implement fine-grained locking for the thread safety of database.
+We used pthread_rwlock_t struct for this purpose.
+As you can see in the node_constructor() function, when we create a new node, we call pthread_rwlock_init() function to init the pthread_rwlock_t object of the new node.
+In the same way, when we destroy a node, we call pthread_rwlock_destroy function to destroy the lock object of the existing node.
+When we add/remove/query nodes, we will not put a read/write a lock on the whole database, because that is coarse-grained locking, but we want find-grained locking.
+With find-grained locking, each node in the tree has its own read/write lock, i.e rw_lock variable in the node_t struct.
+So in the search() function, we will call the lock() or pthread_rwlock_unlock() function with the &parent->rw_lock parameter, 
+and in the db_add() / db_remove() function, we will call pthread_rwlock_unlock() function with the &parent->rw_lock parameter.
